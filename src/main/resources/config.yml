@@ -1,0 +1,13 @@
+# =========================================
+# PremiumAutoLogin
+# Plugin Created by Siryq
+# Version -> 1.0
+# Support here -> paypal.me/MrFunny
+# =========================================
+
+#Avable Language -> it, en
+language: it
+
+settings:
+  debug: false
+  auto-login-message: true

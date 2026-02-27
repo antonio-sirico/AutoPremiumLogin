@@ -21,15 +21,15 @@ public class PlayerJoinListener implements Listener {
         String name = player.getName();
 
         // Controlliamo la nostra cache di ProtocolLib
-        if (LoginPacketListener.isVerified(name)) {
+        if (PremiumLoginListener.isVerified(name)) {
 
             if (!authMeApi.isAuthenticated(player)) {
                 authMeApi.forceLogin(player);
-                player.sendMessage("§a[PremiumAutoLogin] Autenticazione Premium verificata con successo!");
+                PremiumAutoLogin.getInstance().sendMessage(player, "premium-login-success");
             }
 
             // Rimuoviamo il giocatore dalla cache per pulizia
-            LoginPacketListener.removeVerified(name);
+            PremiumLoginListener.removeVerified(name);
         }
     }
 }

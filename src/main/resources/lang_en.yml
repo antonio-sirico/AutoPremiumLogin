@@ -1,0 +1,32 @@
+# =========================================
+# PremiumAutoLogin Language File (English)
+# Plugin Created by Siryq
+# Version -> 1.0
+# Support here -> paypal.me/MrFunny
+# =========================================
+messages:
+
+  premium-already-enabled: "&c[!] Your account is already set as Premium."
+  premium-enabled:
+    - "&a&m---------------------------------------"
+    - "&a&lPREMIUM MODE ENABLED"
+    - "&fYou will now be logged in automatically."
+    - "&eMake sure to use a Microsoft account!"
+    - "&a&m---------------------------------------"
+
+  sp-already-enabled: "&c[!] You are already in SP mode"
+  sp-enabled:
+    - "&6&m---------------------------------------"
+    - "&6&lSP MODE RESTORED"
+    - "&fYou will need to enter your password on next login."
+    - "&6&m---------------------------------------"
+  sp-name: "&cYou must specify a player: /sp <playername>"
+  sp-other-nopermission: "&cYou don't have permission to modify other players' access!"
+  notpremium: "&cThe player is not in Premium mode"
+  sp-other-success: "&aPremium mode disabled for the player"
+  sp-other-usage: "&7Usage: /sp <playername>"
+
+  premium-login-success: "&a[PremiumAutoLogin] Premium authentication verified successfully!"
+  premium-invalid: "&cInvalid premium account. Make sure you have a premium account or try restarting the game."
+  mojang-error: "&cError while verifying with Mojang."
+  only-player: "&cCommand only available for players"

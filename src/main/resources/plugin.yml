@@ -2,6 +2,7 @@ name: PremiumAutoLogin
 version: 1.0
 main: me.siryq.premiumautologin.PremiumAutoLogin
 api-version: '1.21'
+author: Siryq
 description: Plugin di auto-login per account Microsoft su server SP.
 depend: [AuthMe, ProtocolLib]
 commands:
@@ -9,5 +10,7 @@ commands:
     description: Autenticazione automatica tramite Microsoft.
     usage: /premium
   sp:
-    description: Torna alla modalità di login manuale con password.
-    usage: /sp
+    description: Passa alla modalità SP (per te stesso o per altri se sei admin)
+    usage: /sp [nomegiocatore]
+    permission: premiumautologin.admin
+    permission-message: "§cNon hai i permessi per usare questo comando su altri giocatori!"
