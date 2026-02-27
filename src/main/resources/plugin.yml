@@ -1,7 +1,13 @@
 name: PremiumAutoLogin
-version: 1.0-SNAPSHOT
+version: 1.0
 main: me.siryq.premiumautologin.PremiumAutoLogin
 api-version: '1.21'
+description: Plugin di auto-login per account Microsoft su server SP.
 depend: [AuthMe, ProtocolLib]
-authors: [Siryq]
-description: Esegue l'autologin con AuthMe per gli utenti Premium verificati.
+commands:
+  premium:
+    description: Autenticazione automatica tramite Microsoft.
+    usage: /premium
+  sp:
+    description: Torna alla modalità di login manuale con password.
+    usage: /sp
