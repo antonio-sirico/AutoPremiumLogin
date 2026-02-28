@@ -19,7 +19,7 @@ public final class PremiumAutoLogin extends JavaPlugin {
     private static PremiumAutoLogin instance;
     private File dataFile;
     private Map<String, Boolean> premiumPlayersMap;
-    private FileConfiguration dataConfig;
+    private Map<String, String> premiumIPMap;
     private FileConfiguration langConfig;
     private String language;
     private boolean debug;
@@ -67,15 +67,29 @@ public final class PremiumAutoLogin extends JavaPlugin {
         // Carica i dati esistenti, se presenti
         if (dataFile.exists()) {
             try (ObjectInputStream in = new ObjectInputStream(new FileInputStream(dataFile))) {
-                premiumPlayersMap = (Map<String, Boolean>) in.readObject();
-                getLogger().info("Dati premium caricati: " + premiumPlayersMap.size() + " giocatori.");
+
+                Object obj = in.readObject();
+
+                if (obj instanceof Map<?, ?> map) {
+                    premiumPlayersMap = new HashMap<>();
+
+                    for (Map.Entry<?, ?> entry : map.entrySet()) {
+                        if (entry.getKey() instanceof String key &&
+                                entry.getValue() instanceof Boolean value) {
+
+                            premiumPlayersMap.put(key, value);
+                        }
+                    }
+
+                    getLogger().info("Dati premium caricati: " + premiumPlayersMap.size() + " giocatori.");
+                } else {
+                    premiumPlayersMap = new HashMap<>();
+                }
+
             } catch (IOException | ClassNotFoundException e) {
                 getLogger().log(Level.SEVERE, "Errore caricamento dati premium.", e);
                 premiumPlayersMap = new HashMap<>();
             }
-        } else {
-            premiumPlayersMap = new HashMap<>();
-            savePremiumData(); // crea il file iniziale
         }
     }
 
@@ -137,9 +151,18 @@ public final class PremiumAutoLogin extends JavaPlugin {
     public void savePremiumData() {
         try (ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(dataFile))) {
             out.writeObject(premiumPlayersMap);
+            out.writeObject(premiumIPMap);
         } catch (IOException e) {
             getLogger().log(Level.SEVERE, "Errore nel salvataggio dei dati premium", e);
         }
+    }
+    public void setLastIP(String name, String ip) {
+        premiumIPMap.put(name.toLowerCase(), ip);
+        savePremiumData();
+    }
+
+    public String getLastIP(String name) {
+        return premiumIPMap.get(name.toLowerCase());
     }
     public static PremiumAutoLogin getInstance() { return instance; }
 

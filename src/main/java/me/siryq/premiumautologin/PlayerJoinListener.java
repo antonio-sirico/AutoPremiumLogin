@@ -17,10 +17,10 @@ public class PlayerJoinListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onPlayerJoin(PlayerJoinEvent event) {
+
         Player player = event.getPlayer();
         String name = player.getName();
 
-        // Controlliamo la nostra cache di ProtocolLib
         if (PremiumLoginListener.isVerified(name)) {
 
             if (!authMeApi.isAuthenticated(player)) {
@@ -28,7 +28,6 @@ public class PlayerJoinListener implements Listener {
                 PremiumAutoLogin.getInstance().sendMessage(player, "premium-login-success");
             }
 
-            // Rimuoviamo il giocatore dalla cache per pulizia
             PremiumLoginListener.removeVerified(name);
         }
     }
