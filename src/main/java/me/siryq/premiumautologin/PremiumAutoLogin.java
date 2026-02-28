@@ -7,92 +7,127 @@ import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.List;
-import java.util.Map;
 import java.io.*;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.logging.Level;
 
 public final class PremiumAutoLogin extends JavaPlugin {
     private static PremiumAutoLogin instance;
     private File dataFile;
+
+    // Mappa principale: Nome Giocatore -> Stato Premium
     private Map<String, Boolean> premiumPlayersMap;
-    private Map<String, String> premiumIPMap;
+
     private FileConfiguration langConfig;
     private String language;
     private boolean debug;
     private boolean autoLoginMessage;
+    private PremiumVerifier verifier;
 
     @Override
     public void onEnable() {
         instance = this;
-        saveDefaultConfig(); // <-- CREA config.yml se non esiste
-        // Leggi lingua
-        this.language = getConfig().getString("language", "it");
 
-        // Leggi settings
-        this.debug = getConfig().getBoolean("settings.debug", false);
-        this.autoLoginMessage = getConfig().getBoolean("settings.auto-login-message", true);
+        // 1. Configurazione base
+        saveDefaultConfig();
+        loadSettings();
 
+        // 2. Inizializzazione Dati e Lingua
+        premiumPlayersMap = new HashMap<>();
         setupDataFile();
         setupLangFile();
 
-        if (getServer().getPluginManager().getPlugin("AuthMe") == null) {
-            getLogger().severe("AuthMe mancante! Il plugin verrà disabilitato.");
-            getServer().getPluginManager().disablePlugin(this);
-            return;
+        // 3. Controllo Dipendenze (ProtocolLib e AuthMe)
+        if (!checkDependencies()) return;
+
+        // 4. Inizializzazione Verifier (Modalità Standalone con Crittografia)
+        String proxyMode = getConfig().getString("proxy-mode", "auto");
+        if (proxyMode.equalsIgnoreCase("velocity")) {
+            verifier = new VelocityVerifier();
+        } else {
+            // StandaloneVerifier ora gestisce la crittografia RSA via ProtocolLib
+            verifier = new StandaloneVerifier(this);
         }
 
+        getLogger().info("Sistema di verifica attivo: " + verifier.getClass().getSimpleName());
+
+        // 5. Registrazione Comandi e Listener
+        registerCommands();
+        registerListeners();
+
+        getLogger().info("PremiumAutoLogin caricato con successo per la versione 1.21.1!");
+    }
+
+    private void loadSettings() {
+        language = getConfig().getString("language", "it");
+        debug = getConfig().getBoolean("settings.debug", false);
+        autoLoginMessage = getConfig().getBoolean("settings.auto-login-message", true);
+    }
+
+    private boolean checkDependencies() {
+        if (getServer().getPluginManager().getPlugin("ProtocolLib") == null) {
+            getLogger().severe("--- ERRORE CRITICO ---");
+            getLogger().severe("ProtocolLib non trovato! Questo plugin è necessario per la crittografia standard.");
+            getServer().getPluginManager().disablePlugin(this);
+            return false;
+        }
+        if (getServer().getPluginManager().getPlugin("AuthMe") == null) {
+            getLogger().severe("--- ERRORE CRITICO ---");
+            getLogger().severe("AuthMe non trovato! Il login automatico non potrà funzionare.");
+            getServer().getPluginManager().disablePlugin(this);
+            return false;
+        }
+        return true;
+    }
+
+    private void registerCommands() {
         PremiumCommand premiumCommand = new PremiumCommand();
         if (getCommand("premium") != null) getCommand("premium").setExecutor(premiumCommand);
         if (getCommand("sp") != null) getCommand("sp").setExecutor(premiumCommand);
+    }
 
-        // NUOVO listener
+    private void registerListeners() {
         getServer().getPluginManager().registerEvents(new PremiumLoginListener(), this);
         getServer().getPluginManager().registerEvents(new PlayerJoinListener(), this);
-
-        getLogger().info("PremiumAutoLogin abilitato correttamente!");
     }
 
+    /**
+     * Gestione persistenza dati (File .dat)
+     */
     private void setupDataFile() {
         File folder = getDataFolder();
-        if (!folder.exists() && !folder.mkdirs()) {
-            getLogger().warning("Non è stato possibile creare la cartella del plugin.");
-        }
+        if (!folder.exists() && !folder.mkdirs()) getLogger().warning("Impossibile creare la cartella.");
 
         dataFile = new File(folder, "premium_data.dat");
+        if (!dataFile.exists()) return;
 
-        // Carica i dati esistenti, se presenti
-        if (dataFile.exists()) {
-            try (ObjectInputStream in = new ObjectInputStream(new FileInputStream(dataFile))) {
-
-                Object obj = in.readObject();
-
-                if (obj instanceof Map<?, ?> map) {
-                    premiumPlayersMap = new HashMap<>();
-
-                    for (Map.Entry<?, ?> entry : map.entrySet()) {
-                        if (entry.getKey() instanceof String key &&
-                                entry.getValue() instanceof Boolean value) {
-
-                            premiumPlayersMap.put(key, value);
-                        }
-                    }
-
-                    getLogger().info("Dati premium caricati: " + premiumPlayersMap.size() + " giocatori.");
-                } else {
-                    premiumPlayersMap = new HashMap<>();
-                }
-
-            } catch (IOException | ClassNotFoundException e) {
-                getLogger().log(Level.SEVERE, "Errore caricamento dati premium.", e);
-                premiumPlayersMap = new HashMap<>();
+        try (ObjectInputStream in = new ObjectInputStream(new FileInputStream(dataFile))) {
+            Object obj = in.readObject();
+            if (obj instanceof Map<?, ?> map) {
+                map.forEach((k, v) -> {
+                    if (k instanceof String key && v instanceof Boolean value)
+                        premiumPlayersMap.put(key.toLowerCase(), value);
+                });
             }
+            getLogger().info("Caricati " + premiumPlayersMap.size() + " utenti premium dal database.");
+        } catch (IOException | ClassNotFoundException e) {
+            getLogger().log(Level.SEVERE, "Errore nel caricamento del file premium_data.dat", e);
         }
     }
 
+    public void savePremiumData() {
+        try (ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(dataFile))) {
+            out.writeObject(premiumPlayersMap);
+        } catch (IOException e) {
+            getLogger().log(Level.SEVERE, "Errore durante il salvataggio dei dati premium.", e);
+        }
+    }
+
+    /**
+     * API interne per gli altri componenti
+     */
     public boolean isPremium(String name) {
         if (name == null) return false;
         return premiumPlayersMap.getOrDefault(name.toLowerCase(), false);
@@ -101,69 +136,53 @@ public final class PremiumAutoLogin extends JavaPlugin {
     public void setPremium(String name, boolean status) {
         if (name == null) return;
         premiumPlayersMap.put(name.toLowerCase(), status);
-        savePremiumData(); // salva immediatamente
+        savePremiumData();
     }
-    private void setupLangFile() {
-        // Usa la lingua letta da config.yml
-        String fileName = "lang_" + language + ".yml";
-        File langFile = new File(getDataFolder(), fileName);
 
-        if (!langFile.exists()) {
-            saveResource(fileName, false);
-        }
-
-        langConfig = YamlConfiguration.loadConfiguration(langFile);
-
-        logDebug("Lingua caricata: " + language);
+    public PremiumVerifier getVerifier() {
+        return verifier;
     }
+
+    public static PremiumAutoLogin getInstance() {
+        return instance;
+    }
+
+    /**
+     * Gestione messaggi e traduzioni
+     */
     public void sendMessage(CommandSender sender, String path) {
-        // Se il messaggio è premium-login-success e autoLoginMessage è false, salta
         if (path.equals("premium-login-success") && !autoLoginMessage) return;
+
         List<String> lines = langConfig.getStringList("messages." + path);
         if (lines.isEmpty()) {
-            // Proviamo a vedere se c'è una stringa
             String singleLine = langConfig.getString("messages." + path);
-            if (singleLine == null) {
-                getLogger().info("Messaggio mancante: " + path);
-                return;
-            }
+            if (singleLine == null) return;
             lines = List.of(singleLine);
         }
 
         for (String line : lines) {
-            Component component = LegacyComponentSerializer.legacyAmpersand().deserialize(line);
-            sender.sendMessage(component);
+            sender.sendMessage(LegacyComponentSerializer.legacyAmpersand().deserialize(line));
         }
     }
+
     public Component getMessageAsComponent(String path) {
         List<String> lines = langConfig.getStringList("messages." + path);
-        if (lines.isEmpty()) return Component.text("Messaggio mancante: " + path);
-
-        // Unisce tutte le linee in un unico Component separato da \n
-        String combined = String.join("\n", lines);
-        return LegacyComponentSerializer.legacyAmpersand().deserialize(combined);
+        if (lines.isEmpty()) {
+            String singleLine = langConfig.getString("messages." + path);
+            if (singleLine != null) return LegacyComponentSerializer.legacyAmpersand().deserialize(singleLine);
+            return Component.text("Messaggio mancante: " + path);
+        }
+        return LegacyComponentSerializer.legacyAmpersand().deserialize(String.join("\n", lines));
     }
+
     public void logDebug(String msg) {
-        if (debug) {
-            getLogger().info("[DEBUG] " + msg);
-        }
-    }
-    public void savePremiumData() {
-        try (ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream(dataFile))) {
-            out.writeObject(premiumPlayersMap);
-            out.writeObject(premiumIPMap);
-        } catch (IOException e) {
-            getLogger().log(Level.SEVERE, "Errore nel salvataggio dei dati premium", e);
-        }
-    }
-    public void setLastIP(String name, String ip) {
-        premiumIPMap.put(name.toLowerCase(), ip);
-        savePremiumData();
+        if (debug) getLogger().info("[DEBUG] " + msg);
     }
 
-    public String getLastIP(String name) {
-        return premiumIPMap.get(name.toLowerCase());
+    private void setupLangFile() {
+        String fileName = "lang_" + language + ".yml";
+        File langFile = new File(getDataFolder(), fileName);
+        if (!langFile.exists()) saveResource(fileName, false);
+        langConfig = YamlConfiguration.loadConfiguration(langFile);
     }
-    public static PremiumAutoLogin getInstance() { return instance; }
-
 }

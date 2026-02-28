@@ -22,7 +22,7 @@ messages:
     - "&6&m---------------------------------------"
   sp-name: "&cDevi specificare un giocatore: /sp <nomegiocatore>"
   sp-other-nopermission: "&cNon hai i permessi per modificare l'accesso di altri giocatori!"
-  notpremium: "&cIl giocatore non è in modalità Premium"
+  sp-error-notpremium: "&cIl giocatore non è in modalità Premium"
   sp-other-success: "&aModalità Premium disattivata per il giocatore"
   sp-other-usage: "&7Uso: /sp <nomegiocatore>"
 

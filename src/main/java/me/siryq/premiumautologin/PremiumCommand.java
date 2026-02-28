@@ -9,67 +9,77 @@ import org.jetbrains.annotations.NotNull;
 public class PremiumCommand implements CommandExecutor {
 
     @Override
-    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
+    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command,
+                             @NotNull String label, @NotNull String[] args) {
 
-        // Comando /premium (solo per giocatori)
+        PremiumAutoLogin plugin = PremiumAutoLogin.getInstance();
+
+        // --- COMANDO /PREMIUM ---
         if (label.equalsIgnoreCase("premium")) {
             if (!(sender instanceof Player player)) {
-                PremiumAutoLogin.getInstance().sendMessage(sender,"only-player");
+                plugin.sendMessage(sender, "only-player");
                 return true;
             }
 
             String name = player.getName();
-            if (PremiumAutoLogin.getInstance().isPremium(name)) {
-                PremiumAutoLogin.getInstance().sendMessage(player, "premium-already-enabled");
+
+            // Se è già premium, inutile riattivarlo
+            if (plugin.isPremium(name)) {
+                plugin.sendMessage(player, "premium-already-enabled");
                 return true;
             }
 
-            PremiumAutoLogin.getInstance().setPremium(name, true);
-            PremiumAutoLogin.getInstance().sendMessage(player, "premium-enabled");
+            // Impostiamo lo stato premium nel database locale (.dat)
+            plugin.setPremium(name, true);
+            plugin.sendMessage(player, "premium-enabled");
+
+            // Log di debug per sicurezza
+            plugin.logDebug("Giocatore " + name + " ha attivato la modalità Premium.");
             return true;
         }
 
-        // Comando /sp
+        // --- COMANDO /SP ---
         if (label.equalsIgnoreCase("sp")) {
 
+            // Caso 1: /sp (l'utente lo esegue per se stesso)
             if (args.length == 0) {
-                // Modalità normale, per se stessi
                 if (!(sender instanceof Player player)) {
-                    PremiumAutoLogin.getInstance().sendMessage(sender, "sp-name");
+                    plugin.sendMessage(sender, "sp-name");
                     return true;
                 }
 
                 String name = player.getName();
-                if (!PremiumAutoLogin.getInstance().isPremium(name)) {
-                    PremiumAutoLogin.getInstance().sendMessage(player, "sp-already-enabled");
+                if (!plugin.isPremium(name)) {
+                    plugin.sendMessage(player, "sp-already-enabled"); // Messaggio: "Sei già in modalità SP"
                     return true;
                 }
 
-                PremiumAutoLogin.getInstance().setPremium(name, false);
-                PremiumAutoLogin.getInstance().sendMessage(player, "sp-enabled");
+                plugin.setPremium(name, false);
+                plugin.sendMessage(player, "sp-enabled");
                 return true;
+            }
 
-            } else if (args.length == 1) {
-                // Modalità admin/console, disattivazione premium per un altro giocatore
-                if (!(sender.hasPermission("premiumautologin.admin") || !(sender instanceof Player))) {
-                    PremiumAutoLogin.getInstance().sendMessage(sender, "sp-other-nopermission");
+            // Caso 2: /sp <giocatore> (Admin o Console)
+            if (args.length == 1) {
+                if (!sender.hasPermission("premiumautologin.admin") && sender instanceof Player) {
+                    plugin.sendMessage(sender, "sp-other-nopermission");
                     return true;
                 }
 
                 String targetName = args[0];
-                if (!PremiumAutoLogin.getInstance().isPremium(targetName)) {
-                    PremiumAutoLogin.getInstance().sendMessage(sender, "notpremium");
+                if (!plugin.isPremium(targetName)) {
+                    plugin.sendMessage(sender, "sp-error-notpremium");
                     return true;
                 }
 
-                PremiumAutoLogin.getInstance().setPremium(targetName, false);
-                PremiumAutoLogin.getInstance().sendMessage(sender, "sp-other-success");
-                return true;
-
-            } else {
-                PremiumAutoLogin.getInstance().sendMessage(sender, "sp-other-usage");
+                plugin.setPremium(targetName, false);
+                plugin.sendMessage(sender, "sp-other-success");
                 return true;
             }
+
+            // Caso default: utilizzo errato
+            plugin.sendMessage(sender, "sp-other-usage");
+            return true;
         }
 
         return true;
